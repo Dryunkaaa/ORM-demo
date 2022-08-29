@@ -1,0 +1,1 @@
+sudo docker run -d --name custom_orm -e MYSQL_ROOT_PASSWORD=pass -p127.0.0.2:3306:3306 mariadb:10.5.8
