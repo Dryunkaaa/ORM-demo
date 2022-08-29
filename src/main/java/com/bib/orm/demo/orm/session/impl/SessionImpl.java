@@ -1,8 +1,9 @@
-package com.bib.orm.demo.orm.impl;
+package com.bib.orm.demo.orm.session.impl;
 
 import com.bib.orm.demo.annotation.Column;
 import com.bib.orm.demo.annotation.Table;
-import com.bib.orm.demo.orm.ORM;
+import com.bib.orm.demo.orm.session.Session;
+import com.bib.orm.demo.orm.session.util.EntityKey;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 
@@ -15,22 +16,33 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.text.MessageFormat.format;
 
 @RequiredArgsConstructor
-public class CustomORM implements ORM {
+public class SessionImpl implements Session {
 
     private final DataSource dataSource;
+    private final Map<EntityKey<?>, Object> cachedMap = new HashMap<>();
 
     @SneakyThrows
     @Override
-    public <T> T find(Class<T> clazz, Long id) {
+    public <T> T find(Class<T> clazz, Object id) {
+        var entityKey = new EntityKey<>(id);
+
+        var entity = cachedMap.computeIfAbsent(entityKey, ek -> findInDb(clazz, ek.getId()));
+        return clazz.cast(entity);
+    }
+
+    @SneakyThrows
+    private <T> T findInDb(Class<T> clazz, Object id) {
         var idColumnName = getIdColumnName(clazz);
-        var selectQuery = String.format("SELECT * FROM %s WHERE %s = %d", getTableName(clazz), idColumnName, id);
+        var selectQuery = String.format("SELECT * FROM %s WHERE %s = %s", getTableName(clazz), idColumnName, id);
 
         try (var connection = dataSource.getConnection()) {
             try (var statement = connection.createStatement()) {
