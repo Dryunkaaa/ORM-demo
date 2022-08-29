@@ -1,7 +1,8 @@
 package com.bib.orm.demo;
 
 import com.bib.orm.demo.entity.Person;
-import com.bib.orm.demo.orm.CustomORM;
+import com.bib.orm.demo.orm.ORM;
+import com.bib.orm.demo.orm.impl.CustomORM;
 import lombok.SneakyThrows;
 import org.mariadb.jdbc.MariaDbDataSource;
 
@@ -10,14 +11,26 @@ public class App {
     @SuppressWarnings(value = "unused")
     //language=MariaDB
     private static final String CREATE_TABLE_QUERY = "CREATE TABLE person (id INT PRIMARY KEY AUTO_INCREMENT, first_name VARCHAR( 50 ), last_name VARCHAR ( 50 ))";
-    private static CustomORM customORM;
+    private static ORM orm;
 
     @SneakyThrows
     public static void main(String[] args) {
         initOrm();
 
-        var person = customORM.find(Person.class, 1L);
-        System.out.println(person);
+        Person newPerson = new Person();
+
+        newPerson.setFirstName("Inserted person first name");
+        newPerson.setLastName("Inserted person last name");
+
+        orm.save(newPerson);
+
+        System.out.println("INSERTED PERSON - " + orm.find(Person.class, newPerson.getId()));
+
+        if (orm.delete(newPerson)) {
+            System.out.println("PERSON WAS DELETED! ID - " + newPerson.getId());
+        }
+
+        System.out.println("Person by id = " + newPerson.getId() + "  ->  " + orm.find(Person.class, newPerson.getId()));
     }
 
     @SneakyThrows
@@ -28,6 +41,6 @@ public class App {
         dataSource.setUser("root");
         dataSource.setPassword("pass");
 
-        customORM = new CustomORM(dataSource);
+        orm = new CustomORM(dataSource);
     }
 }
