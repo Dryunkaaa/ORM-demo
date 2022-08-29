@@ -1,13 +1,13 @@
 package com.bib.orm.demo.orm.session.impl;
 
 import com.bib.orm.demo.annotation.Column;
+import com.bib.orm.demo.annotation.Id;
 import com.bib.orm.demo.annotation.Table;
 import com.bib.orm.demo.orm.session.Session;
 import com.bib.orm.demo.orm.session.util.EntityKey;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 
-import javax.persistence.Id;
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -33,14 +33,17 @@ public class SessionImpl implements Session {
     @SneakyThrows
     @Override
     public <T> T find(Class<T> clazz, Object id) {
-        var entityKey = new EntityKey<>(id);
+        var entityKey = new EntityKey<>(id, clazz);
 
-        var entity = cachedMap.computeIfAbsent(entityKey, ek -> findInDb(clazz, ek.getId()));
+        var entity = cachedMap.computeIfAbsent(entityKey, ek -> loadFromDb(entityKey));
         return clazz.cast(entity);
     }
 
     @SneakyThrows
-    private <T> T findInDb(Class<T> clazz, Object id) {
+    private <T> T loadFromDb(EntityKey<T> entityKey) {
+        var clazz = entityKey.getType();
+        var id = entityKey.getId();
+
         var idColumnName = getIdColumnName(clazz);
         var selectQuery = String.format("SELECT * FROM %s WHERE %s = %s", getTableName(clazz), idColumnName, id);
 
@@ -197,12 +200,12 @@ public class SessionImpl implements Session {
 
     private String getTableName(Class<?> clazz) {
         checkIfTableAnnotationExists(clazz);
-        return clazz.getAnnotation(Table.class).name();
+        return clazz.getAnnotation(Table.class).value();
     }
 
     private String getColumnName(Field field) {
         if (field.isAnnotationPresent(Column.class)) {
-            return field.getAnnotation(Column.class).name();
+            return field.getAnnotation(Column.class).value();
         }
 
         throw new IllegalStateException(format("@Column annotation was not found in instance of type {0} for field {1}!", field.getDeclaringClass().getName(), field.getName()));
